@@ -357,9 +357,10 @@ def get_flypyquick5_seq(word, pinyin_seq):
             # Two characters: use cjcode[-1]
             flypyquick5_seq.append(("".join(flypys) + cjcode[-1], freq))
         elif 3 <= len(word) <= 4:
-            # Three to seven characters: use first four Flypys
-            flypyquick5_seq.append(("".join(flypys[:4]), freq))
-        else:
+            # Three or four characters: use first three Flypys
+            flypyquick5_seq.append(("".join(flypys), freq))
+        else: # len(word) >= 5
+            # Five characters: use first four Flypys and cjcode[-1]
             flypyquick5_seq.append(("".join(flypys[:4]) + cjcode[-1], freq))
     if len(flypyquick5_seq) == 0:
         raise ValueError(f"No valid FlypyQuick5 sequences generated for word '{word}'.")
@@ -459,8 +460,16 @@ encoder:
       formula: "AaAbBaBbCaCb"
     - length_equal: 4
       formula: "AaAbBaBbCaCbDaDb"
-    - length_equal: [5, 10]
-      formula: "AaAbBaBbCaCbDaDbZz"
+    - length_equal: 5
+      formula: "AaAbBaBbCaCbDaDbEz"
+    - length_equal: 6
+      formula: "AaAbBaBbCaCbDaDbFz"
+    - length_equal: 7
+      formula: "AaAbBaBbCaCbDaDbGz"
+    - length_equal: 8
+      formula: "AaAbBaBbCaCbDaDbHz"
+    - length_equal: 9
+      formula: "AaAbBaBbCaCbDaDbIz"
 import_tables:"""
         for table in input_tables:
             hdr += f"\n  - {table}"
@@ -550,14 +559,17 @@ class TestShuangpin(unittest.TestCase):
         self.assertEqual(toneless_seq, ["ma", "ni", "hao", "lv"])
 
     def test_flypyquick5_seq(self):
-        word = "你好"
-        pinyin_seq = ["nǐ", "hǎo"]
-        flypyquick5_seq = get_flypyquick5_seq(word, pinyin_seq)
-        self.assertTrue(len(flypyquick5_seq) > 0)
-        for seq, freq in flypyquick5_seq:
-            self.assertTrue(isinstance(seq, str))
-            self.assertTrue(isinstance(freq, int))
-            self.assertEqual(seq, "nihcd")  # Expected FlypyQuick5 sequence for "你好"
+        testcases = [("你好", ["nǐ", "hǎo"], "nihcd"),
+                     ("长臂猿", ["cháng", "bì", "yuán"], "ihbiyr"),
+                     ("世界地圖", ["shì", "jiè", "dì", "tú"], "uijpditu"),
+                     ("中華人民共和國", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó"], "vshxrfmbm")]
+        for word, pinyin_seq, expected_seq in testcases:
+            flypyquick5_seq = get_flypyquick5_seq(word, pinyin_seq)
+            self.assertTrue(len(flypyquick5_seq) > 0)
+            for seq, freq in flypyquick5_seq:
+                self.assertTrue(isinstance(seq, str))
+                self.assertTrue(isinstance(freq, int))
+                self.assertEqual(seq, expected_seq)
 
     def test_flypyquick5_dict(self):
         words = {"你好": [["nǐ", "hǎo"]], "世界": [["shì", "jiè"]]}
