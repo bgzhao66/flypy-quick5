@@ -499,27 +499,41 @@ def convert_to_nested_dict(word_codes):
 # print the word_codes which is a dictionary of key,list into a file with the format of word code frequency
 # word_codes: a dictionary of word and a list of tonal pinyin code sequences,
 #               e.g. {'word': [("py1 py2", freq),  ("py3 py4", freq), ...]} 
-# outfile: the output file, default is sys.stdout, in the following format:
-# word<tab>code<tab>frequency
+# return a nested dictionary of length, code, word and frequency
+#        e.g. {"legth": {"code": {"word": frequency}}}
 
-def print_word_codes(word_codes, outfile=sys.stdout):
-    codes = dict()
+def sort_by_length_and_code(word_codes):
+    sorted_word_codes = dict()
     for word in word_codes:
         length = len(word)
+        if length not in sorted_word_codes:
+            sorted_word_codes[length] = dict()
         for code, freq in word_codes[word]:
-            if length not in codes:
-                codes[length] = dict()
-            if code not in codes[length]:
-                codes[length][code] = dict()
-            if word not in codes[length][code]:
-                codes[length][code][word] = 0
-            codes[length][code][word] += freq
+            if code not in sorted_word_codes[length]:
+                sorted_word_codes[length][code] = dict()
+            if word not in sorted_word_codes[length][code]:
+                sorted_word_codes[length][code][word] = 0
+            sorted_word_codes[length][code][word] += freq
+    return sorted_word_codes
 
-    for length in get_sorted_keys(codes):
-        for code in get_sorted_keys(codes[length]):
-            for word in get_sorted_keys(codes[length][code]):
-                freq = codes[length][code][word]
+# print the word_codes which is a dictionary of key,list into a file with the format of word code frequency
+# word_codes: {"legth": {"code": {"word": frequency}}}
+# outfile: the output file, default is sys.stdout, in the following format:
+# word<tab>code<tab>frequency
+def print_word_codes(word_codes, outfile=sys.stdout):
+    for length in get_sorted_keys(word_codes):
+        for code in get_sorted_keys(word_codes[length]):
+            for word in get_sorted_keys(word_codes[length][code]):
+                freq = word_codes[length][code][word]
                 print("%s\t%s\t%i" % (word, code, freq), file=outfile)
+
+# process a list of words and print the FlypyQuick5 dictionary to a file
+# words: a list of words
+# outfile: the output file, default is sys.stdout
+def process_and_print_flypyquick5_dict(words, outfile=sys.stdout):
+    word_dict = get_flypyquick5_dict(words)
+    sorted_dict = sort_by_length_and_code(word_dict)
+    print_word_codes(sorted_dict, outfile)
 
 # ---------------------- Unit Tests ----------------------
 class TestShuangpin(unittest.TestCase):
@@ -637,6 +651,21 @@ class TestShuangpin(unittest.TestCase):
         self.assertFalse("世界" in diff_list)
         self.assertTrue("應該沒有這個詞" in diff_list)
 
+    def test_sort_by_length_and_code(self):
+        word_codes = {
+            "你好": [("nihcd", 100)],
+            "世界": [("uijcd", 200)],
+            "再见": [("zajd", 150)]
+        }
+        sorted_dict = sort_by_length_and_code(word_codes)
+        self.assertTrue(2 in sorted_dict)
+        self.assertTrue("nihcd" in sorted_dict[2])
+        self.assertTrue("uijcd" in sorted_dict[2])
+        self.assertTrue("zajd" in sorted_dict[2])
+        self.assertEqual(sorted_dict[2]["nihcd"]["你好"], 100)
+        self.assertEqual(sorted_dict[2]["uijcd"]["世界"], 200)
+        self.assertEqual(sorted_dict[2]["zajd"]["再见"], 150)
+
 # Steo 8: Command-line interface
 def main():
     parser = argparse.ArgumentParser(description="Convert Pinyin with diacritics to Shuangpin (Xiaohe scheme).")
@@ -655,13 +684,11 @@ def main():
         # Print Chinese character codes
         print(get_header(args.name, input_tables))
         character_dict = convert_to_nested_dict(kCharacterCodes)
-        word_dict = get_flypyquick5_dict(character_dict)
-        print_word_codes(word_dict, sys.stdout)
+        process_and_print_flypyquick5_dict(character_dict, sys.stdout)
     elif args.pinyin_phrase:
         # Print Pinyin phrases
         print(get_header(args.name, input_tables))
-        word_dict = get_flypyquick5_dict(kPinyinPhrases)
-        print_word_codes(word_dict, sys.stdout)
+        process_and_print_flypyquick5_dict(kPinyinPhrases, sys.stdout)
     elif args.input_file:
         # Convert Pinyin from input file to Shuangpin (Xiaohe scheme)
         print(get_header(args.name, input_tables))
@@ -669,8 +696,7 @@ def main():
         if args.difference:
             words = get_difference_set(words)
         pinyin_seq_dict = get_pinyin_seq_for_words(words)
-        word_dict = get_flypyquick5_dict(pinyin_seq_dict)
-        print_word_codes(word_dict, sys.stdout)
+        process_and_print_flypyquick5_dict(pinyin_seq_dict, sys.stdout)
     elif args.test:
         # Run unit tests
         unittest.main(argv=[sys.argv[0]], exit=False)
