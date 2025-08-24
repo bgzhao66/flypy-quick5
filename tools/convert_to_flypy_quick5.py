@@ -527,25 +527,39 @@ def print_word_codes(word_codes, outfile=sys.stdout):
                 freq = word_codes[length][code][word]
                 print("%s\t%s\t%i" % (word, code, freq), file=outfile)
 
+# Get the sorted FlypyQuick5 dictionary from a list of words.
+# words: a list of words, {"word": [["py1", "py2"], ["py3", "py4"]]}
+# return a nested dictionary of length, code, word and frequency
+def get_sorted_flypyquick5_dict(words):
+    words_dict = get_flypyquick5_dict(words)
+    sorted_dict = sort_by_length_and_code(words_dict)
+    return sorted_dict
+
 # Augment the two-character words when there are conflicts by appending the first character's Cangjie code to the FlypyQuick5 code.
 # which are not most frequent ones.
-def augment_two_character_words(word_codes):
+def augment_two_character_words(word_codes, primary_dict = dict()):
     length = 2
     if length not in word_codes:
         return word_codes
 
+    builtin_dict = dict()
+    if length in primary_dict:
+        builtin_dict = primary_dict[length]
+
     words_to_remove = dict()
     for code in list(word_codes[length].keys()):
-        if len(word_codes[length][code]) <= 1:
-            continue
         # find the most frequent word
         max_freq = 0
         max_word = None
-        for word in word_codes[length][code]:
-            freq = word_codes[length][code][word]
-            if freq > max_freq:
-                max_freq = freq
-                max_word = word
+        not_in_builtin = code not in builtin_dict
+        if not_in_builtin:
+            if len(word_codes[length][code]) <= 1:
+                continue
+            for word in word_codes[length][code]:
+                freq = word_codes[length][code][word]
+                if freq > max_freq:
+                    max_freq = freq
+                    max_word = word
         # augment other words
         for word in word_codes[length][code]:
             if word == max_word:
@@ -574,10 +588,9 @@ def augment_two_character_words(word_codes):
 # process a list of words and print the FlypyQuick5 dictionary to a file
 # words: a list of words
 # outfile: the output file, default is sys.stdout
-def process_and_print_flypyquick5_dict(words, outfile=sys.stdout):
-    word_dict = get_flypyquick5_dict(words)
-    sorted_dict = sort_by_length_and_code(word_dict)
-    augmented_dict = augment_two_character_words(sorted_dict)
+def process_and_print_flypyquick5_dict(words, outfile=sys.stdout, primary_dict = dict()):
+    sorted_dict = get_sorted_flypyquick5_dict(words)
+    augmented_dict = augment_two_character_words(sorted_dict, primary_dict)
     print_word_codes(augmented_dict, outfile)
 
 # ---------------------- Unit Tests ----------------------
@@ -727,6 +740,20 @@ class TestShuangpin(unittest.TestCase):
         self.assertEqual(augmented_dict[2]["uijcd"]["世界"], 200)
         self.assertFalse("nihcd" in augmented_dict[2] and "你号" in augmented_dict[2]["nihcd"])
 
+    def test_process_and_print_flypyquick5_dict(self):
+        words = {
+            "你好": [["nǐ", "hǎo"]],
+            "世界": [["shì", "jiè"]]
+        }
+        from io import StringIO
+        output = StringIO()
+        process_and_print_flypyquick5_dict(words, outfile=output)
+        output_str = output.getvalue()
+        self.assertIn("你好", output_str)
+        self.assertIn("世界", output_str)
+        self.assertIn("nihcd", output_str)
+        self.assertIn("uijpl", output_str)
+
 # Steo 8: Command-line interface
 def main():
     parser = argparse.ArgumentParser(description="Convert Pinyin with diacritics to Shuangpin (Xiaohe scheme).")
@@ -751,13 +778,14 @@ def main():
         print(get_header(args.name, input_tables))
         process_and_print_flypyquick5_dict(kPinyinPhrases, sys.stdout)
     elif args.input_file:
+        primary_dict = get_sorted_flypyquick5_dict(kPinyinPhrases)
         # Convert Pinyin from input file to Shuangpin (Xiaohe scheme)
         print(get_header(args.name, input_tables))
         words = get_words_from_file(args.input_file)
         if args.difference:
             words = get_difference_set(words)
         pinyin_seq_dict = get_pinyin_seq_for_words(words)
-        process_and_print_flypyquick5_dict(pinyin_seq_dict, sys.stdout)
+        process_and_print_flypyquick5_dict(pinyin_seq_dict, sys.stdout, primary_dict)
     elif args.test:
         # Run unit tests
         unittest.main(argv=[sys.argv[0]], exit=False)
