@@ -549,7 +549,7 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
     words_to_remove = dict()
     for code in list(word_codes[length].keys()):
         # find the most frequent word
-        max_freq = 0
+        max_freq = -1
         max_word = None
         not_in_builtin = code not in builtin_dict
         if not_in_builtin:
