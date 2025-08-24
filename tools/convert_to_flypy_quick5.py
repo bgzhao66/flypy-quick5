@@ -455,7 +455,7 @@ min_phrase_weight: 100
 encoder:
   rules:
     - length_equal: 2
-      formula: "AaAbBaBbBz"
+      formula: "AaAbBaBbBzAc"
     - length_equal: 3
       formula: "AaAbBaBbCaCb"
     - length_equal: 4
