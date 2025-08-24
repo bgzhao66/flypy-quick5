@@ -538,51 +538,50 @@ def get_sorted_flypyquick5_dict(words):
 # Augment the two-character words when there are conflicts by appending the first character's Cangjie code to the FlypyQuick5 code.
 # which are not most frequent ones.
 def augment_two_character_words(word_codes, primary_dict = dict()):
-    length = 2
-    if length not in word_codes:
-        return word_codes
+    for length in [2, 3]:
+        if length not in word_codes:
+            continue
+        builtin_dict = dict()
+        if length in primary_dict:
+            builtin_dict = primary_dict[length]
 
-    builtin_dict = dict()
-    if length in primary_dict:
-        builtin_dict = primary_dict[length]
-
-    words_to_remove = dict()
-    for code in list(word_codes[length].keys()):
-        # find the most frequent word
-        max_freq = -1
-        max_word = None
-        not_in_builtin = code not in builtin_dict
-        if not_in_builtin:
-            if len(word_codes[length][code]) <= 1:
-                continue
-            for word in word_codes[length][code]:
-                freq = word_codes[length][code][word]
-                if freq > max_freq:
-                    max_freq = freq
-                    max_word = word
-        # augment other words
-        for word in word_codes[length][code]:
-            if word == max_word:
-                continue
-            char = word[0]
-            if char in kCangjieCodes and len(kCangjieCodes[char]) > 0:
-                for cjcode in kCangjieCodes[char]:
-                    new_code = code + cjcode[0]
+        words_to_remove = dict()
+        for code in list(word_codes[length].keys()):
+            # find the most frequent word
+            max_freq = -1
+            max_word = None
+            not_in_builtin = code not in builtin_dict
+            if not_in_builtin:
+                if len(word_codes[length][code]) <= 1:
+                    continue
+                for word in word_codes[length][code]:
                     freq = word_codes[length][code][word]
-                    if new_code not in word_codes[length]:
-                        word_codes[length][new_code] = dict()
-                    if word not in word_codes[length][new_code]:
-                        word_codes[length][new_code][word] = 0
-                    word_codes[length][new_code][word] += freq
-        # remove the old code entry except the most frequent one
-        words_to_remove[code] = [word for word in word_codes[length][code] if word != max_word]
+                    if freq > max_freq:
+                        max_freq = freq
+                        max_word = word
+            # augment other words
+            for word in word_codes[length][code]:
+                if word == max_word:
+                    continue
+                char = word[0]
+                if char in kCangjieCodes and len(kCangjieCodes[char]) > 0:
+                    for cjcode in kCangjieCodes[char]:
+                        new_code = code + cjcode[0]
+                        freq = word_codes[length][code][word]
+                        if new_code not in word_codes[length]:
+                            word_codes[length][new_code] = dict()
+                        if word not in word_codes[length][new_code]:
+                            word_codes[length][new_code][word] = 0
+                        word_codes[length][new_code][word] += freq
+            # remove the old code entry except the most frequent one
+            words_to_remove[code] = [word for word in word_codes[length][code] if word != max_word]
 
-    # remove the old code entries
-    for code in words_to_remove:
-        for word in words_to_remove[code]:
-            del word_codes[length][code][word]
-        if len(word_codes[length][code]) == 0:
-            del word_codes[length][code]
+        # remove the old code entries
+        for code in words_to_remove:
+            for word in words_to_remove[code]:
+                del word_codes[length][code][word]
+            if len(word_codes[length][code]) == 0:
+                del word_codes[length][code]
     return word_codes
 
 # process a list of words and print the FlypyQuick5 dictionary to a file
