@@ -500,7 +500,7 @@ def convert_to_nested_dict(word_codes):
 # word_codes: a dictionary of word and a list of tonal pinyin code sequences,
 #               e.g. {'word': [("py1 py2", freq),  ("py3 py4", freq), ...]} 
 # return a nested dictionary of length, code, word and frequency
-#        e.g. {"legth": {"code": {"word": frequency}}}
+#        e.g. {"length": {"code": {"word": frequency}}}
 
 def sort_by_length_and_code(word_codes):
     sorted_word_codes = dict()
@@ -527,13 +527,58 @@ def print_word_codes(word_codes, outfile=sys.stdout):
                 freq = word_codes[length][code][word]
                 print("%s\t%s\t%i" % (word, code, freq), file=outfile)
 
+# Augment the two-character words when there are conflicts by appending the first character's Cangjie code to the FlypyQuick5 code.
+# which are not most frequent ones.
+def augment_two_character_words(word_codes):
+    length = 2
+    if length not in word_codes:
+        return word_codes
+
+    words_to_remove = dict()
+    for code in list(word_codes[length].keys()):
+        if len(word_codes[length][code]) <= 1:
+            continue
+        # find the most frequent word
+        max_freq = 0
+        max_word = None
+        for word in word_codes[length][code]:
+            freq = word_codes[length][code][word]
+            if freq > max_freq:
+                max_freq = freq
+                max_word = word
+        # augment other words
+        for word in word_codes[length][code]:
+            if word == max_word:
+                continue
+            char = word[0]
+            if char in kCangjieCodes and len(kCangjieCodes[char]) > 0:
+                for cjcode in kCangjieCodes[char]:
+                    new_code = code + cjcode[0]
+                    freq = word_codes[length][code][word]
+                    if new_code not in word_codes[length]:
+                        word_codes[length][new_code] = dict()
+                    if word not in word_codes[length][new_code]:
+                        word_codes[length][new_code][word] = 0
+                    word_codes[length][new_code][word] += freq
+        # remove the old code entry except the most frequent one
+        words_to_remove[code] = [word for word in word_codes[length][code] if word != max_word]
+
+    # remove the old code entries
+    for code in words_to_remove:
+        for word in words_to_remove[code]:
+            del word_codes[length][code][word]
+        if len(word_codes[length][code]) == 0:
+            del word_codes[length][code]
+    return word_codes
+
 # process a list of words and print the FlypyQuick5 dictionary to a file
 # words: a list of words
 # outfile: the output file, default is sys.stdout
 def process_and_print_flypyquick5_dict(words, outfile=sys.stdout):
     word_dict = get_flypyquick5_dict(words)
     sorted_dict = sort_by_length_and_code(word_dict)
-    print_word_codes(sorted_dict, outfile)
+    augmented_dict = augment_two_character_words(sorted_dict)
+    print_word_codes(augmented_dict, outfile)
 
 # ---------------------- Unit Tests ----------------------
 class TestShuangpin(unittest.TestCase):
@@ -665,6 +710,22 @@ class TestShuangpin(unittest.TestCase):
         self.assertEqual(sorted_dict[2]["nihcd"]["你好"], 100)
         self.assertEqual(sorted_dict[2]["uijcd"]["世界"], 200)
         self.assertEqual(sorted_dict[2]["zajd"]["再见"], 150)
+
+    def test_augment_two_character_words(self):
+        word_codes = {
+            2: {
+                "nihcd": {"你好": 100, "你号": 50},
+                "uijcd": {"世界": 200},
+            }
+        }
+        augmented_dict = augment_two_character_words(word_codes)
+        self.assertTrue("nihcd" in augmented_dict[2])
+        self.assertTrue("uijcd" in augmented_dict[2])
+        self.assertTrue("nihcdo" in augmented_dict[2])
+        self.assertEqual(augmented_dict[2]["nihcd"]["你好"], 100)
+        self.assertEqual(augmented_dict[2]["nihcdo"]["你号"], 50)
+        self.assertEqual(augmented_dict[2]["uijcd"]["世界"], 200)
+        self.assertFalse("nihcd" in augmented_dict[2] and "你号" in augmented_dict[2]["nihcd"])
 
 # Steo 8: Command-line interface
 def main():
