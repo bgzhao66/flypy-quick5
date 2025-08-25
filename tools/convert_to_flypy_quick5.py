@@ -275,6 +275,30 @@ def get_frequency_from_files(files):
 
 kWordsFreq = get_frequency_from_files([PINYIN_DICT, PINYIN_EXT1_DICT])
 
+# Get toneless pinyin phrases from kPinyinPhrases and kWordsFreq
+def get_toneless_pinyin_phrases():
+    toneless_phrases = dict()
+    for word in kPinyinPhrases:
+        for pinyin_seq in kPinyinPhrases[word]:
+            toneless_seq = get_toneless_pinyin_seq(pinyin_seq)
+            toneless_code = ' '.join(toneless_seq)
+            if word not in toneless_phrases:
+                toneless_phrases[word] = set()
+            toneless_phrases[word].add(toneless_code)
+    for word in kWordsFreq:
+        if len(word) <= 1:
+            continue
+        for toneless_code in kWordsFreq[word]:
+            if word not in toneless_phrases:
+                toneless_phrases[word] = set()
+            toneless_phrases[word].add(toneless_code)
+    # convert set to list
+    for word in toneless_phrases:
+        toneless_phrases[word] = [toneless_code.split() for toneless_code in toneless_phrases[word]]
+    return toneless_phrases
+
+kTonelessPinyinPhrases = get_toneless_pinyin_phrases()
+
 # get the frequency of a character from freq_dict with default value 0.
 def get_freq_of_word(word, toneless_code, freq_dict):
     if word not in freq_dict:
@@ -413,8 +437,8 @@ def get_flypyquick5_dict(words):
 def get_pinyin_seq_for_words(words):
     pinyin_seq_dict = dict()
     for word in words:
-        if word in kPinyinPhrases:
-            pinyin_seq_dict[word] = kPinyinPhrases[word]
+        if word in kTonelessPinyinPhrases:
+            pinyin_seq_dict[word] = kTonelessPinyinPhrases[word]
         else:
             encodes = []
             for char in word:
@@ -443,7 +467,7 @@ def get_difference_set(phrase_list):
     """Get the difference set of phrases against the builtin Pinyin phrases."""
     diff_list = []
     for word in phrase_list:
-        if word not in kPinyinPhrases:
+        if word not in kTonelessPinyinPhrases:
             diff_list.append(word)
     return diff_list
 
@@ -872,9 +896,9 @@ def main():
     elif args.pinyin_phrase:
         # Print Pinyin phrases
         print(get_header(args.name, input_tables))
-        process_and_print_flypyquick5_dict(kPinyinPhrases, sys.stdout)
+        process_and_print_flypyquick5_dict(kTonelessPinyinPhrases, sys.stdout)
     elif args.input_file:
-        primary_dict = get_sorted_flypyquick5_dict(kPinyinPhrases)
+        primary_dict = get_sorted_flypyquick5_dict(kTonelessPinyinPhrases)
         # Convert Pinyin from input file to Shuangpin (Xiaohe scheme)
         print(get_header(args.name, input_tables))
         words = get_words_from_file(args.input_file)
