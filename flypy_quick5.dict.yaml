@@ -26,6 +26,7 @@ encoder:
     - length_equal: 9
       formula: "AaAbBaBbCaCbDaDbIz"
 import_tables:
+  - flypy_quick5_abbrev
   - flypy_quick5_ext
   - flypy_quick5_extA
   - flypy_quick5_extB

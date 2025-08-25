@@ -253,7 +253,7 @@ def purge_inconsistent_phrases(words, strict=True):
 
 kPinyinPhrases = purge_inconsistent_phrases(get_pinyin_phrases(), strict=False)
 
-# Step 4: Get frequency-sorted simplified Chinese dictionary
+# Step 4: Get frequency-sorted Chinese dictionary
 
 PINYIN_DICT = "pinyin_trad.dict.txt"
 PINYIN_EXT1_DICT = "pinyin_trad_ext1.dict.txt"
@@ -528,7 +528,7 @@ def print_word_codes(word_codes, outfile=sys.stdout):
                 print("%s\t%s\t%i" % (word, code, freq), file=outfile)
 
 # Get the sorted FlypyQuick5 dictionary from a list of words.
-# words: a list of words, {"word": [["py1", "py2"], ["py3", "py4"]]}
+# words: a dictionary of words, {"word": [["py1", "py2"], ["py3", "py4"]]}
 # return a nested dictionary of length, code, word and frequency
 def get_sorted_flypyquick5_dict(words):
     words_dict = get_flypyquick5_dict(words)
@@ -591,6 +591,64 @@ def process_and_print_flypyquick5_dict(words, outfile=sys.stdout, primary_dict =
     sorted_dict = get_sorted_flypyquick5_dict(words)
     augmented_dict = augment_two_character_words(sorted_dict, primary_dict)
     print_word_codes(augmented_dict, outfile)
+
+# Step 8: Simplified codes for codes of most frequent words
+
+# Get the list of word tuple (freq, code, word) from a nested dictionary of length, code, word and frequency
+# word_codes: a nested dictionary of length, code, word and frequency
+# return a list of word tuple (freq, code, word) in descending order of frequency
+def get_sorted_word_tuples(sorted_dict):
+    word_tuples = []
+    for length in sorted_dict:
+        for code in sorted_dict[length]:
+            for word in sorted_dict[length][code]:
+                freq = sorted_dict[length][code][word]
+                word_tuples.append((freq, code, word))
+    word_tuples.sort(reverse=True)
+    return word_tuples
+
+# Get abbreviated codes for the most frequent words
+# code_size: the size of the abbreviated code, which is obtained by truncating the FlypyQuick5 code
+# word_tuples: a list of word tuple (freq, code, word) in descending order of frequency
+# return a dictionary of word and its abbreviated code, which is a nested dictionary of length(code_size), code, word and frequency.
+# Only the most frequent word for each abbreviated code is kept.
+def get_abbreviated_codes(code_size, word_tuples):
+    abbreviated_dict = dict()
+    used_codes = set()
+    for freq, code, word in word_tuples:
+        if len(code) < code_size:
+            continue
+        simple_code = code[:code_size]
+        if simple_code in used_codes:
+            continue
+        used_codes.add(simple_code)
+        length = code_size
+        if length not in abbreviated_dict:
+            abbreviated_dict[length] = dict()
+        if simple_code not in abbreviated_dict[length]:
+            abbreviated_dict[length][simple_code] = dict()
+        abbreviated_dict[length][simple_code][word] = freq
+    return abbreviated_dict
+
+# Get the simpflified FlypyQuick5 dictionary for the builtin characters and phrases.
+# The abbreviated code size is 1 and 2 for the most frequent Chinese characters only, 3 for the most frequent two-character phrases only.
+# return a nested dictionary of length(code_size), code, word and frequency.
+def get_abbreviated_dict_for__builtins():
+    abbreviated_dict = dict()
+    # 1 and 2-letter codes for the most frequent characters
+    char_tuples = get_sorted_word_tuples(get_sorted_flypyquick5_dict(convert_to_nested_dict(kCharacterCodes)))
+    for code_size in [1, 2]:
+        char_abbreviated_dict = get_abbreviated_codes(code_size, char_tuples)
+        for length in char_abbreviated_dict:
+            abbreviated_dict[length] = char_abbreviated_dict[length]
+    # 3-letter codes for the most frequent two-character phrases
+    length = 2
+    phrase_tuples = get_sorted_word_tuples({length: get_sorted_flypyquick5_dict(kPinyinPhrases)[length]})
+    phrase_abbreviated_dict = get_abbreviated_codes(3, phrase_tuples)
+    for length in phrase_abbreviated_dict:
+        abbreviated_dict[length] = phrase_abbreviated_dict[length]
+    # return the abbreviated dictionary
+    return abbreviated_dict
 
 # ---------------------- Unit Tests ----------------------
 class TestShuangpin(unittest.TestCase):
@@ -753,6 +811,32 @@ class TestShuangpin(unittest.TestCase):
         self.assertIn("nihcd", output_str)
         self.assertIn("uijpl", output_str)
 
+    def test_get_sorted_word_tuples(self):
+        word_codes = {
+            2: {
+                "nihcd": {"你好": 100},
+                "uijcd": {"世界": 200},
+            }
+        }
+        word_tuples = get_sorted_word_tuples(word_codes)
+        self.assertEqual(len(word_tuples), 2)
+        self.assertEqual(word_tuples[0], (200, "uijcd", "世界"))
+        self.assertEqual(word_tuples[1], (100, "nihcd", "你好"))
+
+    def test_get_abbreviated_codes(self):
+        word_tuples = [
+            (200, "uijcd", "世界"),
+            (100, "nihcd", "你好"),
+            (50, "nihcdo", "你号")
+        ]
+        abbreviated_dict = get_abbreviated_codes(4, word_tuples)
+        self.assertTrue(4 in abbreviated_dict)
+        self.assertTrue("uijc" in abbreviated_dict[4])
+        self.assertTrue("nihc" in abbreviated_dict[4])
+        self.assertEqual(abbreviated_dict[4]["uijc"]["世界"], 200)
+        self.assertEqual(abbreviated_dict[4]["nihc"]["你好"], 100)
+        self.assertFalse("nihc" in abbreviated_dict[4] and "你号" in abbreviated_dict[4]["nihc"])
+
 # Steo 8: Command-line interface
 def main():
     parser = argparse.ArgumentParser(description="Convert Pinyin with diacritics to Shuangpin (Xiaohe scheme).")
@@ -761,6 +845,7 @@ def main():
     parser.add_argument("--input_tables", nargs='*', help="Input tables to import", default=[])
     parser.add_argument("--pinyin_phrase", help="print builtin pinyin phrase", action="store_true")
     parser.add_argument("--difference", help="use difference set against the builtin pinyin phrases", action="store_true")
+    parser.add_argument("--abbreviate", help="print abbreviated codes for most frequent builtin words", action="store_true")
     parser.add_argument("--test", help="run unit tests", action="store_true")
     parser.add_argument("input_file", nargs="?", help="Input file name", default=None)
     args = parser.parse_args()
@@ -785,6 +870,11 @@ def main():
             words = get_difference_set(words)
         pinyin_seq_dict = get_pinyin_seq_for_words(words)
         process_and_print_flypyquick5_dict(pinyin_seq_dict, sys.stdout, primary_dict)
+    elif args.abbreviate:
+        # Print abbreviated codes for most frequent words
+        print(get_header(args.name, input_tables))
+        builtin_abbreviated_dict = get_abbreviated_dict_for__builtins()
+        print_word_codes(builtin_abbreviated_dict, sys.stdout)
     elif args.test:
         # Run unit tests
         unittest.main(argv=[sys.argv[0]], exit=False)
