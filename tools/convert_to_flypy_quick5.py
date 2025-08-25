@@ -377,8 +377,8 @@ def get_flypyquick5_seq(word, pinyin_seq):
         # Single character: use cjcode[0] and cjcode[-1]
         mode = 'both'
     elif len(word) == 2:
-        # Two characters: use cjcode[0]
-        mode = 'first'
+        # Two characters: use cjcode[-1]
+        mode = 'last'
     elif 3 <= len(word) <= 4:
         # Three or four characters: use first three Flypys
         mode = 'none'
@@ -467,7 +467,7 @@ min_phrase_weight: 100
 encoder:
   rules:
     - length_equal: 2
-      formula: "AaAbBaBbAcBz"
+      formula: "AaAbBaBbBzAc"
     - length_equal: 3
       formula: "AaAbBaBbCaCb"
     - length_equal: 4
@@ -575,7 +575,7 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
             for word in word_codes[length][code]:
                 if word == max_word:
                     continue
-                mode = {0: "first", 1: "last"}[(length + 1)%2]
+                mode = 'first'
                 try:
                     suffixes = get_initial_or_finals_cangjie5(word, mode)
                     for aug_suffix in suffixes:
@@ -703,7 +703,7 @@ class TestShuangpin(unittest.TestCase):
         self.assertEqual(toneless_seq, ["ma", "ni", "hao", "lv"])
 
     def test_flypyquick5_seq(self):
-        testcases = [("你好", ["nǐ", "hǎo"], "nihco"),
+        testcases = [("你好", ["nǐ", "hǎo"], "nihcd"),
                      ("长臂猿", ["cháng", "bì", "yuán"], "ihbiyr"),
                      ("世界地圖", ["shì", "jiè", "dì", "tú"], "uijpditu"),
                      ("中華人民共和國", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó"], "vshxrfmbm")]
@@ -799,18 +799,18 @@ class TestShuangpin(unittest.TestCase):
     def test_augment_two_character_words(self):
         word_codes = {
             2: {
-                "nihco": {"你好": 100, "你号": 50},
-                "uijpp": {"世界": 200},
+                "nihcd": {"你好": 100, "你号": 50},
+                "uijpl": {"世界": 200},
             }
         }
         augmented_dict = augment_two_character_words(word_codes)
-        self.assertTrue("nihco" in augmented_dict[2])
-        self.assertTrue("uijpp" in augmented_dict[2])
-        self.assertTrue("nihcos" in augmented_dict[2])
-        self.assertEqual(augmented_dict[2]["nihco"]["你好"], 100)
-        self.assertEqual(augmented_dict[2]["nihcos"]["你号"], 50)
-        self.assertEqual(augmented_dict[2]["uijpp"]["世界"], 200)
-        self.assertFalse("nihco" in augmented_dict[2] and "你号" in augmented_dict[2]["nihco"])
+        self.assertTrue("nihcd" in augmented_dict[2])
+        self.assertTrue("uijpl" in augmented_dict[2])
+        self.assertTrue("nihcdo" in augmented_dict[2])
+        self.assertEqual(augmented_dict[2]["nihcd"]["你好"], 100)
+        self.assertEqual(augmented_dict[2]["nihcdo"]["你号"], 50)
+        self.assertEqual(augmented_dict[2]["uijpl"]["世界"], 200)
+        self.assertFalse("nihcd" in augmented_dict[2] and "你号" in augmented_dict[2]["nihcd"])
 
     def test_process_and_print_flypyquick5_dict(self):
         words = {
@@ -823,8 +823,8 @@ class TestShuangpin(unittest.TestCase):
         output_str = output.getvalue()
         self.assertIn("你好", output_str)
         self.assertIn("世界", output_str)
-        self.assertIn("nihco", output_str)
-        self.assertIn("uijpp", output_str)
+        self.assertIn("nihcd", output_str)
+        self.assertIn("uijpl", output_str)
 
     def test_get_sorted_word_tuples(self):
         word_codes = {
