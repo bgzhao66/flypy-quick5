@@ -358,7 +358,7 @@ def get_initial_or_finals_cangjie5(word, mode):
 #          cjcode is the Cangjie code for the last Chinese character in word.
 # Rules:
 # 1. Single characters: "".join(flypys) + cjcode[0] + cjcode[-1]
-# 2. Two characters: "".join(flypys) + cjcode[0]
+# 2. Two characters: "".join(flypys) + cjcode[-1]
 # 3. Three or four characters: "".join(flypys[:4])
 # 4. Five or more characters:  "".join(flypys[:4]) + cjcode[-1]
 # 5. If the word is not in the frequency dictionary, use a default frequency of
@@ -371,20 +371,17 @@ def get_flypyquick5_seq(word, pinyin_seq):
     toneless_seq = get_toneless_pinyin_seq(pinyin_seq)
     flypys = pinyin_to_shuangpin_seq(toneless_seq)
     freq = get_freq_of_word(word, ' '.join(toneless_seq), kWordsFreq)
+    mode_mapping = {
+        1: 'both',
+        2: 'last',
+        3: 'none',
+        4: 'none',
+    }
+    assert len(word) >= 1
+    mode = 'last'
+    if len(word) in mode_mapping:
+        mode = mode_mapping[len(word)]
     pys = ''.join(flypys[:4])
-    mode = ''
-    if len(word) == 1:
-        # Single character: use cjcode[0] and cjcode[-1]
-        mode = 'both'
-    elif len(word) == 2:
-        # Two characters: use cjcode[-1]
-        mode = 'last'
-    elif 3 <= len(word) <= 4:
-        # Three or four characters: use first three Flypys
-        mode = 'none'
-    else: # len(word) >= 5
-        # Five characters: use first four Flypys and cjcode[-1]
-        mode = 'last'
     flypyquick5_seq = [(''.join(code), freq) for code in get_descartes_products([[pys], get_initial_or_finals_cangjie5(word, mode)])]
     if len(flypyquick5_seq) == 0:
         raise ValueError(f"No valid FlypyQuick5 sequences generated for word '{word}'.")
