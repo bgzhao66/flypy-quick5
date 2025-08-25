@@ -319,6 +319,35 @@ def pinyin_to_shuangpin_seq(toneless_seq):
         shuangpin_seq.append(shuangpin)
     return shuangpin_seq
 
+# Get all descartes products of encodes which is a list of list of elements
+# e.g. [[a1, a2], [b1, b2]] -> [[a1, b1], [a1, b2], [a2, b1], [a2, b2]]
+def get_descartes_products(encodes):
+    descartes = [[]]
+    for encode in encodes:
+        new_descartes = []
+        for descarte in descartes:
+            for element in encode:
+                new_descartes.append(descarte + [element])
+        descartes = new_descartes
+    return descartes
+
+# Get initial or final codes of Cangjie for a word
+def get_initial_or_finals_cangjie5(word, mode):
+    codes = []
+    if mode in ['01']:
+        assert len(word) == 1
+        codes = [cjcode[0] + cjcode[-1] for cjcode in kCangjieCodes.get(word[0], [])]
+    elif mode in ['0']:
+        codes = [cjcode[0] for cjcode in kCangjieCodes.get(word[0], [])]
+    elif mode in ['1']:
+        codes = [cjcode[-1] for cjcode in kCangjieCodes.get(word[-1], [])]
+    else:
+        assert mode in ['']
+        codes = ['']
+    if len(codes) == 0:
+        raise ValueError(f"No Cangjie codes found for word '{word}' with mode '{mode}'.")
+    return codes
+
 # Return a list of FlypyQuick5 sequences for a word and its Pinyin sequence.
 # This function converts the Pinyin sequence to toneless Pinyin,
 # then maps each toneless Pinyin to its Flypys, and then to its corresponding FlypyQuick5 code.
@@ -328,8 +357,8 @@ def pinyin_to_shuangpin_seq(toneless_seq):
 # Notations: flypys is a list of Flypys for the toneless Pinyin,
 #          cjcode is the Cangjie code for the last Chinese character in word.
 # Rules:
-# 1. Single characters: "".join(flypys) + cjcode[1] + cjcode[-1]
-# 2. Two characters: "".join(flypys) + cjcode[-1]
+# 1. Single characters: "".join(flypys) + cjcode[0] + cjcode[-1]
+# 2. Two characters: "".join(flypys) + cjcode[0]
 # 3. Three or four characters: "".join(flypys[:4])
 # 4. Five or more characters:  "".join(flypys[:4]) + cjcode[-1]
 # 5. If the word is not in the frequency dictionary, use a default frequency of
@@ -341,27 +370,22 @@ def get_flypyquick5_seq(word, pinyin_seq):
     """Convert a word and its Pinyin sequence to FlypyQuick5 sequences."""
     toneless_seq = get_toneless_pinyin_seq(pinyin_seq)
     flypys = pinyin_to_shuangpin_seq(toneless_seq)
-    char = word[-1]
-    if char not in kCangjieCodes:
-        raise ValueError(f"Character '{char}' not found in Cangjie codes.")
-    cjcodes = kCangjieCodes[char]
-    if len(cjcodes) == 0:
-        raise ValueError(f"No Cangjie codes found for character '{char}'.")
     freq = get_freq_of_word(word, ' '.join(toneless_seq), kWordsFreq)
-    flypyquick5_seq = []
-    for cjcode in cjcodes:
-        if len(word) == 1:
-            # Single character: use cjcode[1] and cjcode[-1]
-            flypyquick5_seq.append(("".join(flypys) + cjcode[0] + cjcode[-1], freq))
-        elif len(word) == 2:
-            # Two characters: use cjcode[-1]
-            flypyquick5_seq.append(("".join(flypys) + cjcode[-1], freq))
-        elif 3 <= len(word) <= 4:
-            # Three or four characters: use first three Flypys
-            flypyquick5_seq.append(("".join(flypys), freq))
-        else: # len(word) >= 5
-            # Five characters: use first four Flypys and cjcode[-1]
-            flypyquick5_seq.append(("".join(flypys[:4]) + cjcode[-1], freq))
+    pys = ''.join(flypys[:4])
+    mode = ''
+    if len(word) == 1:
+        # Single character: use cjcode[1] and cjcode[-1]
+        mode = '01'
+    elif len(word) == 2:
+        # Two characters: use cjcode[-1]
+        mode = '1'
+    elif 3 <= len(word) <= 4:
+        # Three or four characters: use first three Flypys
+        mode = ''
+    else: # len(word) >= 5
+        # Five characters: use first four Flypys and cjcode[-1]
+        mode = '1'
+    flypyquick5_seq = [(''.join(code), freq) for code in get_descartes_products([[pys], get_initial_or_finals_cangjie5(word, mode)])]
     if len(flypyquick5_seq) == 0:
         raise ValueError(f"No valid FlypyQuick5 sequences generated for word '{word}'.")
     # Return the list of FlypyQuick5 sequences
@@ -384,18 +408,6 @@ def get_flypyquick5_dict(words):
             except ValueError as e:
                 print(f"Warning: {e}", file=sys.stderr)
     return flypyquick5_dict
-
-# get all descartes products of encodes which is a list of list of elements
-# e.g. [[a1, a2], [b1, b2]] -> [[a1, b1], [a1, b2], [a2, b1], [a2, b2]]
-def get_descartes_products(encodes):
-    descartes = [[]]
-    for encode in encodes:
-        new_descartes = []
-        for descarte in descartes:
-            for element in encode:
-                new_descartes.append(descarte + [element])
-        descartes = new_descartes
-    return descartes
 
 # Get pinyin sequences for words from a dictionary of words and their pinyin code sequences. If a word is not in the dictionary, return a descartes product of its characters' pinyin codes.
 # words is a list of words, e.g. ['word1', 'word2', ...]
@@ -563,16 +575,16 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
             for word in word_codes[length][code]:
                 if word == max_word:
                     continue
-                char = word[0]
-                if char in kCangjieCodes and len(kCangjieCodes[char]) > 0:
-                    for cjcode in kCangjieCodes[char]:
-                        new_code = code + cjcode[0]
-                        freq = word_codes[length][code][word]
-                        if new_code not in word_codes[length]:
-                            word_codes[length][new_code] = dict()
-                        if word not in word_codes[length][new_code]:
-                            word_codes[length][new_code][word] = 0
-                        word_codes[length][new_code][word] += freq
+                mode = '0'
+                suffixes = get_initial_or_finals_cangjie5(word, mode)
+                for aug_suffix in suffixes:
+                    new_code = code + aug_suffix
+                    freq = word_codes[length][code][word]
+                    if new_code not in word_codes[length]:
+                        word_codes[length][new_code] = dict()
+                    if word not in word_codes[length][new_code]:
+                        word_codes[length][new_code][word] = 0
+                    word_codes[length][new_code][word] += freq
             # remove the old code entry except the most frequent one
             words_to_remove[code] = [word for word in word_codes[length][code] if word != max_word]
 
