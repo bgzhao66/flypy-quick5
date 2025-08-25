@@ -345,7 +345,7 @@ def get_initial_or_finals_cangjie5(word, mode):
         assert mode in ['']
         codes = ['']
     if len(codes) == 0:
-        raise ValueError(f"No Cangjie codes found for word '{word}' with mode '{mode}'.")
+        raise ValueError(f"No Cangjie codes found for word '{word}', with mode '{mode}'.")
     return codes
 
 # Return a list of FlypyQuick5 sequences for a word and its Pinyin sequence.
@@ -374,11 +374,11 @@ def get_flypyquick5_seq(word, pinyin_seq):
     pys = ''.join(flypys[:4])
     mode = ''
     if len(word) == 1:
-        # Single character: use cjcode[1] and cjcode[-1]
+        # Single character: use cjcode[0] and cjcode[-1]
         mode = '01'
     elif len(word) == 2:
-        # Two characters: use cjcode[-1]
-        mode = '1'
+        # Two characters: use cjcode[0]
+        mode = '0'
     elif 3 <= len(word) <= 4:
         # Three or four characters: use first three Flypys
         mode = ''
@@ -467,7 +467,7 @@ min_phrase_weight: 100
 encoder:
   rules:
     - length_equal: 2
-      formula: "AaAbBaBbBzAc"
+      formula: "AaAbBaBbAcBz"
     - length_equal: 3
       formula: "AaAbBaBbCaCb"
     - length_equal: 4
@@ -575,16 +575,19 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
             for word in word_codes[length][code]:
                 if word == max_word:
                     continue
-                mode = '0'
-                suffixes = get_initial_or_finals_cangjie5(word, mode)
-                for aug_suffix in suffixes:
-                    new_code = code + aug_suffix
-                    freq = word_codes[length][code][word]
-                    if new_code not in word_codes[length]:
-                        word_codes[length][new_code] = dict()
-                    if word not in word_codes[length][new_code]:
-                        word_codes[length][new_code][word] = 0
-                    word_codes[length][new_code][word] += freq
+                mode = str((length + 1)%2)  # '1' for length 2, '0' for length 3
+                try:
+                    suffixes = get_initial_or_finals_cangjie5(word, mode)
+                    for aug_suffix in suffixes:
+                        new_code = code + aug_suffix
+                        freq = word_codes[length][code][word]
+                        if new_code not in word_codes[length]:
+                            word_codes[length][new_code] = dict()
+                        if word not in word_codes[length][new_code]:
+                            word_codes[length][new_code][word] = 0
+                        word_codes[length][new_code][word] += freq
+                except ValueError as e:
+                    print(f"Warning: {e}", file=sys.stderr)
             # remove the old code entry except the most frequent one
             words_to_remove[code] = [word for word in word_codes[length][code] if word != max_word]
 
@@ -700,7 +703,7 @@ class TestShuangpin(unittest.TestCase):
         self.assertEqual(toneless_seq, ["ma", "ni", "hao", "lv"])
 
     def test_flypyquick5_seq(self):
-        testcases = [("你好", ["nǐ", "hǎo"], "nihcd"),
+        testcases = [("你好", ["nǐ", "hǎo"], "nihco"),
                      ("长臂猿", ["cháng", "bì", "yuán"], "ihbiyr"),
                      ("世界地圖", ["shì", "jiè", "dì", "tú"], "uijpditu"),
                      ("中華人民共和國", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó"], "vshxrfmbm")]
@@ -796,18 +799,18 @@ class TestShuangpin(unittest.TestCase):
     def test_augment_two_character_words(self):
         word_codes = {
             2: {
-                "nihcd": {"你好": 100, "你号": 50},
-                "uijcd": {"世界": 200},
+                "nihco": {"你好": 100, "你号": 50},
+                "uijpp": {"世界": 200},
             }
         }
         augmented_dict = augment_two_character_words(word_codes)
-        self.assertTrue("nihcd" in augmented_dict[2])
-        self.assertTrue("uijcd" in augmented_dict[2])
-        self.assertTrue("nihcdo" in augmented_dict[2])
-        self.assertEqual(augmented_dict[2]["nihcd"]["你好"], 100)
-        self.assertEqual(augmented_dict[2]["nihcdo"]["你号"], 50)
-        self.assertEqual(augmented_dict[2]["uijcd"]["世界"], 200)
-        self.assertFalse("nihcd" in augmented_dict[2] and "你号" in augmented_dict[2]["nihcd"])
+        self.assertTrue("nihco" in augmented_dict[2])
+        self.assertTrue("uijpp" in augmented_dict[2])
+        self.assertTrue("nihcos" in augmented_dict[2])
+        self.assertEqual(augmented_dict[2]["nihco"]["你好"], 100)
+        self.assertEqual(augmented_dict[2]["nihcos"]["你号"], 50)
+        self.assertEqual(augmented_dict[2]["uijpp"]["世界"], 200)
+        self.assertFalse("nihco" in augmented_dict[2] and "你号" in augmented_dict[2]["nihco"])
 
     def test_process_and_print_flypyquick5_dict(self):
         words = {
@@ -820,8 +823,8 @@ class TestShuangpin(unittest.TestCase):
         output_str = output.getvalue()
         self.assertIn("你好", output_str)
         self.assertIn("世界", output_str)
-        self.assertIn("nihcd", output_str)
-        self.assertIn("uijpl", output_str)
+        self.assertIn("nihco", output_str)
+        self.assertIn("uijpp", output_str)
 
     def test_get_sorted_word_tuples(self):
         word_codes = {
