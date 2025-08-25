@@ -334,15 +334,15 @@ def get_descartes_products(encodes):
 # Get initial or final codes of Cangjie for a word
 def get_initial_or_finals_cangjie5(word, mode):
     codes = []
-    if mode in ['01']:
+    if mode in ['both']:
         assert len(word) == 1
         codes = [cjcode[0] + cjcode[-1] for cjcode in kCangjieCodes.get(word[0], [])]
-    elif mode in ['0']:
+    elif mode in ['first']:
         codes = [cjcode[0] for cjcode in kCangjieCodes.get(word[0], [])]
-    elif mode in ['1']:
+    elif mode in ['last']:
         codes = [cjcode[-1] for cjcode in kCangjieCodes.get(word[-1], [])]
     else:
-        assert mode in ['']
+        assert mode in ['none']
         codes = ['']
     if len(codes) == 0:
         raise ValueError(f"No Cangjie codes found for word '{word}', with mode '{mode}'.")
@@ -375,16 +375,16 @@ def get_flypyquick5_seq(word, pinyin_seq):
     mode = ''
     if len(word) == 1:
         # Single character: use cjcode[0] and cjcode[-1]
-        mode = '01'
+        mode = 'both'
     elif len(word) == 2:
         # Two characters: use cjcode[0]
-        mode = '0'
+        mode = 'first'
     elif 3 <= len(word) <= 4:
         # Three or four characters: use first three Flypys
-        mode = ''
+        mode = 'none'
     else: # len(word) >= 5
         # Five characters: use first four Flypys and cjcode[-1]
-        mode = '1'
+        mode = 'last'
     flypyquick5_seq = [(''.join(code), freq) for code in get_descartes_products([[pys], get_initial_or_finals_cangjie5(word, mode)])]
     if len(flypyquick5_seq) == 0:
         raise ValueError(f"No valid FlypyQuick5 sequences generated for word '{word}'.")
@@ -575,7 +575,7 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
             for word in word_codes[length][code]:
                 if word == max_word:
                     continue
-                mode = str((length + 1)%2)  # '1' for length 2, '0' for length 3
+                mode = {0: "first", 1: "last"}[(length + 1)%2]
                 try:
                     suffixes = get_initial_or_finals_cangjie5(word, mode)
                     for aug_suffix in suffixes:
