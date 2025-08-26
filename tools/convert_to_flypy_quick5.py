@@ -490,7 +490,7 @@ encoder:
     - length_equal: 2
       formula: "AaAbBaBbBzAc"
     - length_equal: 3
-      formula: "AaAbBaBbCaCb"
+      formula: "AaAbBaBbCaCbAc"
     - length_equal: 4
       formula: "AaAbBaBbCaCbDaDb"
     - length_equal: 5

@@ -12,7 +12,7 @@ encoder:
     - length_equal: 2
       formula: "AaAbBaBbBzAc"
     - length_equal: 3
-      formula: "AaAbBaBbCaCb"
+      formula: "AaAbBaBbCaCbAc"
     - length_equal: 4
       formula: "AaAbBaBbCaCbDaDb"
     - length_equal: 5
@@ -6393,7 +6393,7 @@ import_tables:
 峎	enuv	3
 𡷐	enuv	0
 𡟯	envp	0
-恩	enwp	162017
+恩	enwp	132017
 𤫹	enyo	0
 𤇯	enyv	0
 䏪	erbj	0
