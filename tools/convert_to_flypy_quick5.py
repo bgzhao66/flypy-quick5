@@ -326,6 +326,9 @@ def get_cangjie_code_from_file(file):
                 continue
             word = parts[0].strip()
             cjcode = parts[1].strip().split()[0]
+            # skip cjcode prefixed with 'x' or 'z'
+            if cjcode[0] in ['x', 'z']:
+                continue
             if word not in words:
                 words[word] = []
             words[word].append(cjcode)
