@@ -680,37 +680,23 @@ def get_abbreviated_dict_for__builtins():
         for code in toneless_phrases[length]:
             used_codes.add(code)
     abbreviated_dict = dict()
-    # 1 and 2-letter codes for the most frequent characters
-    char_tuples = get_sorted_word_tuples(get_sorted_flypyquick5_dict(convert_to_nested_dict(kCharacterCodes)))
-    # add the most frequent characters to used_codes
-    for _, code, _ in char_tuples:
-        used_codes.add(code)
-    for code_size in [1, 2]:
-        char_abbreviated_dict = get_abbreviated_codes(code_size, char_tuples, used_codes)
-        for length in char_abbreviated_dict:
-            abbreviated_dict[length] = char_abbreviated_dict[length]
-    # 3-letter codes for the most frequent two-character phrases
-    length = 2
-    phrase_tuples = get_sorted_word_tuples({length: get_sorted_flypyquick5_dict(kPinyinPhrases)[length]})
-    code_size = 3
-    phrase_abbreviated_dict = get_abbreviated_codes(code_size, phrase_tuples, used_codes)
-    for length in phrase_abbreviated_dict:
-        abbreviated_dict[length] = phrase_abbreviated_dict[length]
-    # 4-letter codes for the most frequent two-character phrases
-    length = 2
-    phrase_tuples = get_sorted_word_tuples({length: toneless_phrases[length]})
-    code_size = 4
-    phrase_abbreviated_dict = get_abbreviated_codes(code_size, phrase_tuples, used_codes)
-    for length in phrase_abbreviated_dict:
-        abbreviated_dict[length] = phrase_abbreviated_dict[length]
-    # 5-letter codes for the most frequent three-character phrases
-    length = 3
-    phrase_tuples = get_sorted_word_tuples({length: toneless_phrases[length]})
-    code_size = 5
-    phrase_abbreviated_dict = get_abbreviated_codes(code_size, phrase_tuples, used_codes)
-    for length in phrase_abbreviated_dict:
-        abbreviated_dict[length] = phrase_abbreviated_dict[length]
-    # 7-letter codes for the most frequent four-character phrases
+
+    # the list of phrase levels to process, each item is a tuple of (phrases_dict, code_sizes)
+    phrase_levels = [(get_sorted_flypyquick5_dict(convert_to_nested_dict(kCharacterCodes)), [1, 2]), # characters, 1 and 2-letter codes
+                     ({2: get_sorted_flypyquick5_dict(kPinyinPhrases)[2]}, [3]), # two-character phrases, 3-letter codes
+                     ({2: toneless_phrases[2]}, [4]), # two-character phrases, 4-letter codes
+                     ({3: toneless_phrases[3]}, [5])] # three-character phrases, 5-letter codes
+
+    for phrases_dict, code_sizes in phrase_levels:
+        phrase_tuples = get_sorted_word_tuples(phrases_dict)
+        for _, code, _ in phrase_tuples:
+            used_codes.add(code)
+        for code_size in code_sizes:
+            word_abbreviated_dict = get_abbreviated_codes(code_size, phrase_tuples, used_codes)
+            for length in word_abbreviated_dict:
+                assert length not in abbreviated_dict, f"Conflict in abbreviated_dict for length {length}"
+                abbreviated_dict[length] = word_abbreviated_dict[length]
+
     # return the abbreviated dictionary
     return abbreviated_dict
 
