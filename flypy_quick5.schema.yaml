@@ -57,7 +57,7 @@ engine:
   filters:
     - simplifier
     - uniquifier
-    - single_char_filter
+    #- single_char_filter
 
 speller:
   alphabet: zyxwvutsrqponmlkjihgfedcba
