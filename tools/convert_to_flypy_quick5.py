@@ -262,15 +262,18 @@ PINYIN_EXT1_DICT = "pinyin_trad_ext1.dict.txt"
 def get_frequency_from_files(files):
     freq = dict()
     for file in files:
+        line_no = 0
         with open(file, 'r') as f:
             for line in f:
                 line = line.strip()
+                line_no += 1
                 word, code, frequency = line.split('\t')
                 if word not in freq:
                     freq[word] = dict()
                 if code not in freq[word]:
-                    freq[word][code] = 0
-                freq[word][code] += int(frequency)
+                    freq[word][code] = (0, 0)  # (frequency, placeholder for future use)
+                f, p = freq[word][code]
+                freq[word][code] = (f + int(frequency), -line_no if p == 0 else p)
     return freq
 
 kWordsFreq = get_frequency_from_files([PINYIN_DICT, PINYIN_EXT1_DICT])
@@ -302,9 +305,9 @@ kTonelessPinyinPhrases = get_toneless_pinyin_phrases()
 # get the frequency of a character from freq_dict with default value 0.
 def get_freq_of_word(word, toneless_code, freq_dict):
     if word not in freq_dict:
-        return 0
+        return (0, -sys.maxsize)
     if toneless_code not in freq_dict[word]:
-        return 0
+        return (0, -sys.maxsize)
     return freq_dict[word][toneless_code]
 
 # Step 5: Get Cangjie codes from file
@@ -550,8 +553,9 @@ def sort_by_length_and_code(word_codes):
             if code not in sorted_word_codes[length]:
                 sorted_word_codes[length][code] = dict()
             if word not in sorted_word_codes[length][code]:
-                sorted_word_codes[length][code][word] = 0
-            sorted_word_codes[length][code][word] += freq
+                sorted_word_codes[length][code][word] = (0, 0)  # (frequency, placeholder for future use)
+            f, p = sorted_word_codes[length][code][word]
+            sorted_word_codes[length][code][word] = (f + freq[0], freq[1] if p == 0 else p)
     return sorted_word_codes
 
 # print the word_codes which is a dictionary of key,list into a file with the format of word code frequency
@@ -563,7 +567,7 @@ def print_word_codes(word_codes, outfile=sys.stdout):
         for code in get_sorted_keys(word_codes[length]):
             for word in get_sorted_keys(word_codes[length][code]):
                 freq = word_codes[length][code][word]
-                print("%s\t%s\t%i" % (word, code, freq), file=outfile)
+                print("%s\t%s\t%i" % (word, code, freq[0]), file=outfile)
 
 # Get the sorted FlypyQuick5 dictionary from a list of words.
 # words: a dictionary of words, {"word": [["py1", "py2"], ["py3", "py4"]]}
@@ -586,7 +590,7 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
         words_to_remove = dict()
         for code in list(word_codes[length].keys()):
             # find the most frequent word
-            max_freq = -1
+            max_freq = (0, -sys.maxsize)
             max_word = None
             not_in_builtin = code not in builtin_dict
             if not_in_builtin:
@@ -610,8 +614,9 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
                         if new_code not in word_codes[length]:
                             word_codes[length][new_code] = dict()
                         if word not in word_codes[length][new_code]:
-                            word_codes[length][new_code][word] = 0
-                        word_codes[length][new_code][word] += freq
+                            word_codes[length][new_code][word] = (0, 0)
+                        f, p = word_codes[length][new_code][word]
+                        word_codes[length][new_code][word] = (f + freq[0], freq[1] if p == 0 else p)
                 except ValueError as e:
                     print(f"Warning: {e}", file=sys.stderr)
             # remove the old code entry except the most frequent one
@@ -746,8 +751,9 @@ class TestShuangpin(unittest.TestCase):
             flypyquick5_seq = get_flypyquick5_seq(word, pinyin_seq)
             self.assertTrue(len(flypyquick5_seq) > 0)
             for seq, freq in flypyquick5_seq:
+                print(f"Word: {word}, Pinyin: {pinyin_seq}, FlypyQuick5: {seq}, Frequency: {freq}")
                 self.assertTrue(isinstance(seq, str))
-                self.assertTrue(isinstance(freq, int))
+                self.assertTrue(isinstance(freq, tuple))
                 self.assertEqual(seq, expected_seq)
 
     def test_flypyquick5_dict(self):
@@ -818,33 +824,33 @@ class TestShuangpin(unittest.TestCase):
 
     def test_sort_by_length_and_code(self):
         word_codes = {
-            "你好": [("nihcd", 100)],
-            "世界": [("uijcd", 200)],
-            "再见": [("zajd", 150)]
+            "你好": [("nihcd", (100, -1))],
+            "世界": [("uijcd", (200, -1))],
+            "再见": [("zajd", (150, -1))]
         }
         sorted_dict = sort_by_length_and_code(word_codes)
         self.assertTrue(2 in sorted_dict)
         self.assertTrue("nihcd" in sorted_dict[2])
         self.assertTrue("uijcd" in sorted_dict[2])
         self.assertTrue("zajd" in sorted_dict[2])
-        self.assertEqual(sorted_dict[2]["nihcd"]["你好"], 100)
-        self.assertEqual(sorted_dict[2]["uijcd"]["世界"], 200)
-        self.assertEqual(sorted_dict[2]["zajd"]["再见"], 150)
+        self.assertEqual(sorted_dict[2]["nihcd"]["你好"], (100, -1))
+        self.assertEqual(sorted_dict[2]["uijcd"]["世界"], (200, -1))
+        self.assertEqual(sorted_dict[2]["zajd"]["再见"], (150, -1))
 
     def test_augment_two_character_words(self):
         word_codes = {
             2: {
-                "nihcd": {"你好": 100, "你号": 50},
-                "uijpl": {"世界": 200},
+                "nihcd": {"你好": (100, -1), "你号": (50, -2)},
+                "uijpl": {"世界": (200, -1)},
             }
         }
         augmented_dict = augment_two_character_words(word_codes)
         self.assertTrue("nihcd" in augmented_dict[2])
         self.assertTrue("uijpl" in augmented_dict[2])
         self.assertTrue("nihcdo" in augmented_dict[2])
-        self.assertEqual(augmented_dict[2]["nihcd"]["你好"], 100)
-        self.assertEqual(augmented_dict[2]["nihcdo"]["你号"], 50)
-        self.assertEqual(augmented_dict[2]["uijpl"]["世界"], 200)
+        self.assertEqual(augmented_dict[2]["nihcd"]["你好"], (100, -1))
+        self.assertEqual(augmented_dict[2]["nihcdo"]["你号"], (50, -2))
+        self.assertEqual(augmented_dict[2]["uijpl"]["世界"], (200, -1))
         self.assertFalse("nihcd" in augmented_dict[2] and "你号" in augmented_dict[2]["nihcd"])
 
     def test_process_and_print_flypyquick5_dict(self):
@@ -864,27 +870,27 @@ class TestShuangpin(unittest.TestCase):
     def test_get_sorted_word_tuples(self):
         word_codes = {
             2: {
-                "nihcd": {"你好": 100},
-                "uijcd": {"世界": 200},
+                "nihcd": {"你好": (100, -1)},
+                "uijcd": {"世界": (200, -1)},
             }
         }
         word_tuples = get_sorted_word_tuples(word_codes)
         self.assertEqual(len(word_tuples), 2)
-        self.assertEqual(word_tuples[0], (200, "uijcd", "世界"))
-        self.assertEqual(word_tuples[1], (100, "nihcd", "你好"))
+        self.assertEqual(word_tuples[0], ((200, -1), "uijcd", "世界"))
+        self.assertEqual(word_tuples[1], ((100, -1), "nihcd", "你好"))
 
     def test_get_abbreviated_codes(self):
         word_tuples = [
-            (200, "uijcd", "世界"),
-            (100, "nihcd", "你好"),
-            (50, "nihcdo", "你号")
+            ((200, -1), "uijcd", "世界"),
+            ((100, -1), "nihcd", "你好"),
+            ((50, -1), "nihcdo", "你号")
         ]
         abbreviated_dict = get_abbreviated_codes(4, word_tuples)
         self.assertTrue(4 in abbreviated_dict)
         self.assertTrue("uijc" in abbreviated_dict[4])
         self.assertTrue("nihc" in abbreviated_dict[4])
-        self.assertEqual(abbreviated_dict[4]["uijc"]["世界"], 200)
-        self.assertEqual(abbreviated_dict[4]["nihc"]["你好"], 100)
+        self.assertEqual(abbreviated_dict[4]["uijc"]["世界"], (200, -1))
+        self.assertEqual(abbreviated_dict[4]["nihc"]["你好"], (100, -1))
         self.assertFalse("nihc" in abbreviated_dict[4] and "你号" in abbreviated_dict[4]["nihc"])
 
 # Steo 8: Command-line interface
