@@ -1,5 +1,4 @@
-# generate a list of tables to be converted from prefix 'pinvin_simp_ext' and suffix '2' to '7'
-# and the primary table 'pinvin_simp'
+export PYTHONHASHSEED=0
 
 PRIMARY_NAME = flypy_quick5
 INDEXES = $(shell echo A B)
