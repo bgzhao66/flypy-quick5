@@ -681,7 +681,8 @@ def get_abbreviated_codes(code_size, word_tuples, used_codes = set()):
 def get_abbreviated_dict_for__builtins():
     used_codes = set()
     toneless_phrases = get_sorted_flypyquick5_dict(kTonelessPinyinPhrases)
-    for length in toneless_phrases:
+    for length in [2, 3]:
+        assert length in toneless_phrases, f"Length {length} not in toneless_phrases"
         for code in toneless_phrases[length]:
             used_codes.add(code)
     abbreviated_dict = dict()
@@ -694,8 +695,6 @@ def get_abbreviated_dict_for__builtins():
 
     for phrases_dict, code_sizes in phrase_levels:
         phrase_tuples = get_sorted_word_tuples(phrases_dict)
-        for _, code, _ in phrase_tuples:
-            used_codes.add(code)
         for code_size in code_sizes:
             word_abbreviated_dict = get_abbreviated_codes(code_size, phrase_tuples, used_codes)
             for length in word_abbreviated_dict:
