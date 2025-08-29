@@ -393,6 +393,13 @@ def get_initial_or_finals_cangjie5(word, mode):
 # 4. Five or more characters:  "".join(flypys[:4]) + cjcode[-1]
 # 5. If the word is not in the frequency dictionary, use a default frequency of
 
+def get_selected_pys(flypys):
+    selected_pys = flypys[0:4]
+    for i in range(4, len(flypys)):
+        if (i+1) % 5 in [3, 4]:
+            selected_pys.append(flypys[i])
+    return selected_pys
+
 # Returns a list of FlypyQuick5 sequences for the given word and Pinyin sequence.
 #  [("flypyquick5_seq1", freq1), ("flypyquick5_seq2", freq2), ...]
 
@@ -411,7 +418,7 @@ def get_flypyquick5_seq(word, pinyin_seq):
     mode = 'last'
     if len(word) in mode_mapping:
         mode = mode_mapping[len(word)]
-    pys = ''.join(flypys[:4])
+    pys = ''.join(get_selected_pys(flypys))
     flypyquick5_seq = [(''.join(code), freq) for code in get_descartes_products([[pys], get_initial_or_finals_cangjie5(word, mode)])]
     if len(flypyquick5_seq) == 0:
         raise ValueError(f"No valid FlypyQuick5 sequences generated for word '{word}'.")
@@ -741,11 +748,12 @@ class TestShuangpin(unittest.TestCase):
         toneless_seq = get_toneless_pinyin_seq(pinyin_seq)
         self.assertEqual(toneless_seq, ["ma", "ni", "hao", "lv"])
 
-    def test_flypyquick5_seq(self):
+    def test_get_flypyquick5_seq(self):
         testcases = [("你好", ["nǐ", "hǎo"], "nihcd"),
                      ("长臂猿", ["cháng", "bì", "yuán"], "ihbiyr"),
                      ("世界地圖", ["shì", "jiè", "dì", "tú"], "uijpditu"),
-                     ("中華人民共和國", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó"], "vshxrfmbm")]
+                     ("中華人民共和國", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó"], "vshxrfmbm"),
+                     ("中華人民共和國國歌", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó", "guo", "ge"], "vshxrfmbgogeo")]
         for word, pinyin_seq, expected_seq in testcases:
             flypyquick5_seq = get_flypyquick5_seq(word, pinyin_seq)
             self.assertTrue(len(flypyquick5_seq) > 0)
