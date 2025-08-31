@@ -698,7 +698,8 @@ def get_abbreviated_dict_for__builtins():
     phrase_levels = [(get_sorted_flypyquick5_dict(convert_to_nested_dict(kCharacterCodes)), [1, 2]), # characters, 1 and 2-letter codes
                      ({2: get_sorted_flypyquick5_dict(kPinyinPhrases)[2]}, [3]), # two-character phrases, 3-letter codes
                      ({2: toneless_phrases[2]}, [4]), # two-character phrases, 4-letter codes
-                     ({3: toneless_phrases[3]}, [5])] # three-character phrases, 5-letter codes
+                     ({3: toneless_phrases[3]}, [5]), # three-character phrases, 5-letter codes
+                     ({4: toneless_phrases[4]}, [7])] # four-character phrases, 7-letter codes
 
     for phrases_dict, code_sizes in phrase_levels:
         phrase_tuples = get_sorted_word_tuples(phrases_dict)
