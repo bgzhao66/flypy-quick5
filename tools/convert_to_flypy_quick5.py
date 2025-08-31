@@ -584,10 +584,10 @@ def get_sorted_flypyquick5_dict(words):
     sorted_dict = sort_by_length_and_code(words_dict)
     return sorted_dict
 
-# Augment the two-character words when there are conflicts by appending the first character's Cangjie code to the FlypyQuick5 code.
+# Augment the common words when there are conflicts by appending the first character's Cangjie code to the FlypyQuick5 code.
 # which are not most frequent ones.
-def augment_two_character_words(word_codes, primary_dict = dict()):
-    for length in [2, 3]:
+def augment_common_words(word_codes, primary_dict = dict()):
+    for length in [2, 3, 4]:
         if length not in word_codes:
             continue
         builtin_dict = dict()
@@ -612,7 +612,7 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
             for word in word_codes[length][code]:
                 if word == max_word:
                     continue
-                mode = 'first'
+                mode = 'first' if length in [2, 3] else 'last';
                 try:
                     suffixes = get_initial_or_finals_cangjie5(word, mode)
                     for aug_suffix in suffixes:
@@ -642,7 +642,7 @@ def augment_two_character_words(word_codes, primary_dict = dict()):
 # outfile: the output file, default is sys.stdout
 def process_and_print_flypyquick5_dict(words, outfile=sys.stdout, primary_dict = dict()):
     sorted_dict = get_sorted_flypyquick5_dict(words)
-    augmented_dict = augment_two_character_words(sorted_dict, primary_dict)
+    augmented_dict = augment_common_words(sorted_dict, primary_dict)
     print_word_codes(augmented_dict, outfile)
 
 # Step 8: Simplified codes for codes of most frequent words
@@ -845,14 +845,14 @@ class TestShuangpin(unittest.TestCase):
         self.assertEqual(sorted_dict[2]["uijcd"]["世界"], (200, -1))
         self.assertEqual(sorted_dict[2]["zajd"]["再见"], (150, -1))
 
-    def test_augment_two_character_words(self):
+    def test_augment_common_words(self):
         word_codes = {
             2: {
                 "nihcd": {"你好": (100, -1), "你号": (50, -2)},
                 "uijpl": {"世界": (200, -1)},
             }
         }
-        augmented_dict = augment_two_character_words(word_codes)
+        augmented_dict = augment_common_words(word_codes)
         self.assertTrue("nihcd" in augmented_dict[2])
         self.assertTrue("uijpl" in augmented_dict[2])
         self.assertTrue("nihcdo" in augmented_dict[2])
