@@ -515,9 +515,9 @@ encoder:
     - length_equal: 7
       formula: "AaAbBaBbCaCbDaDbGz"
     - length_equal: 8
-      formula: "AaAbBaBbCaCbDaDbHz"
+      formula: "AaAbBaBbCaCbDaDbHaHbHz"
     - length_equal: 9
-      formula: "AaAbBaBbCaCbDaDbIz"
+      formula: "AaAbBaBbCaCbDaDbHaHbIaIbIz"
 import_tables:"""
         for table in input_tables:
             hdr += f"\n  - {table}"
