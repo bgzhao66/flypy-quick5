@@ -574,7 +574,7 @@ def sort_by_length_and_code(word_codes):
             if word not in sorted_word_codes[length][code]:
                 sorted_word_codes[length][code][word] = (0, 0)  # (frequency, placeholder for future use)
             f, p = sorted_word_codes[length][code][word]
-            sorted_word_codes[length][code][word] = (f + freq[0], freq[1] if p == 0 else p)
+            sorted_word_codes[length][code][word] = (max(f, freq[0]), freq[1] if p == 0 else p)
     return sorted_word_codes
 
 # print the word_codes which is a dictionary of key,list into a file with the format of word code frequency
@@ -637,7 +637,7 @@ def augment_common_words(word_codes, primary_dict = dict()):
                         if word not in word_codes[length][new_code]:
                             word_codes[length][new_code][word] = (0, 0)
                         f, p = word_codes[length][new_code][word]
-                        word_codes[length][new_code][word] = (f + freq[0], freq[1] if p == 0 else p)
+                        word_codes[length][new_code][word] = (max(f, freq[0]), freq[1] if p == 0 else p)
                 except ValueError as e:
                     print(f"Warning: {e}", file=sys.stderr)
             # remove the old code entry except the most frequent one
