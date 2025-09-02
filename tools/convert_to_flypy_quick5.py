@@ -361,16 +361,28 @@ def get_descartes_products(encodes):
         descartes = new_descartes
     return descartes
 
+# Get Cangjie quick5 codes for a word
+def get_cangjie_quick5(word):
+    codes = []
+    for c in word:
+        cjcodes = [''.join([cjcode[0], cjcode[-1]]) for cjcode in kCangjieCodes.get(c, [])]
+        if len(cjcodes) == 0:
+            raise ValueError(f"No Cangjie codes found for character '{c}' in word '{word}'.")
+        codes.append(cjcodes)
+    codes = [''.join(code) for code in get_descartes_products(codes)]
+    return codes
+
 # Get initial or final codes of Cangjie for a word
 def get_initial_or_finals_cangjie5(word, mode):
     codes = []
-    if mode in ['both']:
-        assert len(word) == 1
-        codes = [cjcode[0] + cjcode[-1] for cjcode in kCangjieCodes.get(word[0], [])]
+    if mode in ['first-last']:
+        codes = [cjcode[0] + cjcode[-1] for cjcode in get_cangjie_quick5(word)]
+    elif mode in ['last-first']:
+        codes = [cjcode[-1] + cjcode[0] for cjcode in get_cangjie_quick5(word)]
     elif mode in ['first']:
-        codes = [cjcode[0] for cjcode in kCangjieCodes.get(word[0], [])]
+        codes = [cjcode[0] for cjcode in get_cangjie_quick5(word)]
     elif mode in ['last']:
-        codes = [cjcode[-1] for cjcode in kCangjieCodes.get(word[-1], [])]
+        codes = [cjcode[-1] for cjcode in get_cangjie_quick5(word)]
     else:
         assert mode in ['none']
         codes = ['']
@@ -409,7 +421,7 @@ def get_flypyquick5_seq(word, pinyin_seq):
     flypys = pinyin_to_shuangpin_seq(toneless_seq)
     freq = get_freq_of_word(word, ' '.join(toneless_seq), kWordsFreq)
     mode_mapping = {
-        1: 'both',
+        1: 'first-last',
         2: 'last',
         3: 'none',
         4: 'none',
