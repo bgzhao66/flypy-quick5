@@ -421,9 +421,9 @@ def get_flypyquick5_seq(word, pinyin_seq):
     flypys = pinyin_to_shuangpin_seq(toneless_seq)
     freq = get_freq_of_word(word, ' '.join(toneless_seq), kWordsFreq)
     mode_mapping = {
-        1: 'first-last',
+        1: 'last-first',
         2: 'last-first',
-        3: 'first',
+        3: 'last-first',
         4: 'none',
     }
     assert len(word) >= 1
@@ -515,21 +515,21 @@ encoder:
     - '^[a-z].?$'
   rules:
     - length_equal: 2
-      formula: "AaAbBaBbBzAc"
+      formula: "AaAbBaBbBcAz"
     - length_equal: 3
-      formula: "AaAbBaBbCaCbAc"
+      formula: "AaAbBaBbCaCbCcAz"
     - length_equal: 4
       formula: "AaAbBaBbCaCbDaDb"
     - length_equal: 5
-      formula: "AaAbBaBbCaCbDaDbEz"
+      formula: "AaAbBaBbCaCbDaDbEc"
     - length_equal: 6
-      formula: "AaAbBaBbCaCbDaDbFz"
+      formula: "AaAbBaBbCaCbDaDbFc"
     - length_equal: 7
-      formula: "AaAbBaBbCaCbDaDbGz"
+      formula: "AaAbBaBbCaCbDaDbGc"
     - length_equal: 8
-      formula: "AaAbBaBbCaCbDaDbHaHbHz"
+      formula: "AaAbBaBbCaCbDaDbHaHbHc"
     - length_equal: 9
-      formula: "AaAbBaBbCaCbDaDbHaHbIaIbIz"
+      formula: "AaAbBaBbCaCbDaDbHaHbIaIbIc"
 import_tables:"""
         for table in input_tables:
             hdr += f"\n  - {table}"
@@ -708,12 +708,13 @@ def get_abbreviated_dict_for__builtins():
             used_codes.add(code)
 
     # the list of phrase levels to process, each item is a tuple of (phrases_dict, code_sizes)
-    phrase_levels = [(get_sorted_flypyquick5_dict(convert_to_nested_dict(kCharacterCodes)), [1, 2]), # characters, 1 and 2-letter codes
+    phrase_levels = [(get_sorted_flypyquick5_dict(convert_to_nested_dict(kCharacterCodes)), [1, 2]), # single characters, 1 and 2-letter codes
                      ({2: get_sorted_flypyquick5_dict(kPinyinPhrases)[2]}, [3]), # two-character phrases, 3-letter codes
                      ({2: toneless_phrases[2]}, [4]), # two-character phrases, 4-letter codes
                      ({2: toneless_phrases[2]}, [5]), # two-character phrases, 5-letter codes
                      ({3: toneless_phrases[3]}, [5]), # three-character phrases, 5-letter codes
                      ({3: toneless_phrases[3]}, [6]), # three-character phrases, 6-letter codes
+                     ({3: toneless_phrases[3]}, [7]), # three-character phrases, 7-letter codes
                      ({4: toneless_phrases[4]}, [7])] # four-character phrases, 7-letter codes
 
     abbreviated_dicts = []
@@ -764,7 +765,7 @@ class TestShuangpin(unittest.TestCase):
 
     def test_get_flypyquick5_seq(self):
         testcases = [("你好", ["nǐ", "hǎo"], "nihcdo"),
-                     ("长臂猿", ["cháng", "bì", "yuán"], "ihbiyrp"),
+                     ("长臂猿", ["cháng", "bì", "yuán"], "ihbiyrvp"),
                      ("世界地圖", ["shì", "jiè", "dì", "tú"], "uijpditu"),
                      ("中華人民共和國", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó"], "vshxrfmbm"),
                      ("中華人民共和國國歌", ["zhōng", "huá", "rén", "mín", "gòng", "hé", "guó", "guo", "ge"], "vshxrfmbgogeo")]
